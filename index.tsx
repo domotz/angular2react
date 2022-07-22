@@ -1,3 +1,4 @@
+import { IScope } from 'angular'
 import * as angular from 'angular'
 import kebabCase = require('lodash.kebabcase')
 import { $injector as defaultInjector } from 'ngimport'
@@ -5,13 +6,9 @@ import {
   createElement,
   FunctionComponent,
   useEffect,
-  useMemo,
-  useState,
+  useMemo, useRef,
+  useState
 } from 'react'
-
-interface Scope<Props> extends angular.IScope {
-  props: Props
-}
 
 /**
  * Wraps an Angular component in React. Returns a new React component.
@@ -35,6 +32,13 @@ interface Scope<Props> extends angular.IScope {
  *   ```
  */
 
+function digest(scope: IScope): void{
+  if (!scope) {
+      return
+  }
+  try {scope.$digest() } catch (e) { }
+}
+
 export function angular2react<Props extends object>(
   componentName: string,
   component: angular.IComponentOptions,
@@ -46,19 +50,29 @@ export function angular2react<Props extends object>(
   }
 
   return function Component(props: Props): any {
-    console.log('RENDERING FUNCTIONAL COMPONENT', componentName)
     const [didInitialCompile, setDidInitialCompile] = useState<Boolean>(false)
-    const scope = useMemo<Scope<Props>>(
-        () => Object.assign(getInjector().get('$rootScope').$new(true), { props: writable(props) }),
-    [])
+    const scope = useMemo<IScope>(() => getInjector().get('$rootScope').$new(true), [])
+    const scopeRef = useRef(scope)
 
     useEffect(() => {
+      scopeRef.current = scope
+      Object.assign(scopeRef.current, {props: writable(props)})
       return () => {
         if (!scope) {
           return
         }
         scope.$destroy()
       }
+    }, [scope])
+
+    // @ts-ignore
+    useEffect(() => {
+        if (!scope) {
+          return null
+        }
+        // @ts-ignore
+      scope.props = writable(props)
+        digest(scope)
     })
 
     const bindings: { [key: string]: string } = {}
@@ -80,9 +94,7 @@ export function angular2react<Props extends object>(
 
       const $injector = getInjector()
       $injector.get('$compile')(element)(scope)
-      if ( scope ){
-        try {scope.$digest() } catch (e) { }
-      }
+      digest(scope)
       setDidInitialCompile(true)
     }
 
