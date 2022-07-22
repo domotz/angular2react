@@ -1,7 +1,7 @@
 import { auto, element as $, mock, module } from 'angular'
 import 'angular-mocks'
 import * as React from 'react'
-import { render, unmountComponentAtNode } from 'react-dom'
+import { createRoot } from 'react-dom/client';
 import { angular2react } from './'
 
 // Angular component
@@ -58,40 +58,43 @@ beforeEach(() => {
 })
 
 it('should give a react component', () => {
-  const Foo2 = compile($injector)
+  const Foo2: any = compile($injector)
   const foo2 = new Foo2({
     foo: 'foo',
     fooBar: 1
   })
-  expect(foo2 instanceof React.Component).toBe(true)
+  expect(foo2 instanceof Function).toBe(true)
 })
 
 it('should render', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} />)
   expect($(element).find('span').eq(0).text()).toBe('hello')
   expect($(element).find('span').eq(1).text()).toBe('504')
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 it('should update', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} />)
   expect($(element).find('span').eq(1).text()).toBe('504')
-  unmountComponentAtNode(element)
-  render(<Foo2 foo='hello' fooBar={43} />, element)
+  root.unmount()
+  root.render(<Foo2 foo='hello' fooBar={43} />)
   expect($(element).find('span').eq(1).text()).toBe('516')
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 it('should destroy', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} />)
   spyOn(FooController.prototype, '$onDestroy')
-  const unmounted = unmountComponentAtNode(element)
+  const unmounted = root.unmount()
   expect(unmounted).toBeTruthy()
   expect(FooController.prototype.$onDestroy).toHaveBeenCalled()
   expect(element.childNodes.length).toBe(0)
@@ -101,37 +104,41 @@ it('should take callbacks', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
   const cb = jasmine.createSpy('bazMoo1Boo')
-  render(<Foo2 foo='hello' fooBar={42} bazMoo1Boo={cb} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} bazMoo1Boo={cb} />)
   $(element).find('div').triggerHandler('click')
   expect(cb).toHaveBeenCalledWith(42)
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 it('should work with dependency injected code', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} />)
   expect($(element).find('span').eq(2).text()).toBe('84')
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 // TODO: support children
 it('should not support children', () => {
-  const Foo2 = compile($injector)
+  const Foo2: any = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42}>
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42}>
            <span>Child</span>
-         </Foo2>, element)
+         </Foo2>)
   expect($(element).find('ng-transclude').html()).toBe('')
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 it('should use the angular component as the root component', () => {
   const Foo2 = compile($injector)
   const element = document.createElement('div')
-  render(<Foo2 foo='hello' fooBar={42} />, element)
+  const root = createRoot(element)
+  root.render(<Foo2 foo='hello' fooBar={42} />)
   expect($(element).find('foo-bar-baz')[0].parentElement).toBe(element)
-  unmountComponentAtNode(element)
+  root.unmount()
 })
 
 interface Props {

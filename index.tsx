@@ -1,15 +1,17 @@
 import * as angular from 'angular'
 import kebabCase = require('lodash.kebabcase')
-import * as React from 'react'
 import { $injector as defaultInjector } from 'ngimport'
+import * as React from 'react'
+import {
+  createElement,
+  FunctionComponent,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
 interface Scope<Props> extends angular.IScope {
   props: Props
-}
-
-interface State<Props> {
-  didInitialCompile: boolean
-  scope?: Scope<Props>
 }
 
 /**
@@ -33,83 +35,64 @@ interface State<Props> {
  *   <Bar onChange={...} />
  *   ```
  */
+
 export function angular2react<Props extends object>(
   componentName: string,
   component: angular.IComponentOptions,
   $injector = defaultInjector
-): React.ComponentClass<Props> {
+): FunctionComponent<Props> {
 
-  return class Component extends React.Component<Props, State<Props>> {
+  function  getInjector() {
+    return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector()
+  }
 
-    state: State<Props> = {
-      didInitialCompile: false,
-      scope: Object.assign(this.getInjector().get('$rootScope').$new(true), { props: writable(this.props) }),
-    }
+  return function Component(props: Props): any {
+    console.log('RENDERING FUNCTIONAL COMPONENT', componentName)
+    const [didInitialCompile, setDidInitialCompile] = useState<Boolean>(false)
+    const scope = useMemo<Scope<Props>>(
+        () => Object.assign(getInjector().get('$rootScope').$new(true), { props: writable(props) }),
+    [])
 
-    getInjector() {
-      return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector();
-    }
-
-    componentWillUnmount() {
-      if (!this.state.scope) {
-        return
+    useEffect(() => {
+      return () => {
+        if (!scope) {
+          return
+        }
+        scope.$destroy()
       }
-      this.state.scope.$destroy()
-    }
+    })
 
-    shouldComponentUpdate(): boolean {
-      return false
-    }
-
-    // called only once to set up DOM, after componentWillMount
-    render() {
-      const bindings: { [key: string]: string } = {}
-      if (component.bindings) {
-        for (const binding in component.bindings) {
-          if (component.bindings[binding].includes('@')) {
-            // @ts-ignore
-            bindings[kebabCase(binding)] = this.props[binding];
-          } else {
-            bindings[kebabCase(binding)] = `props.${binding}`;
-          }
+    const bindings: { [key: string]: string } = {}
+    if (component.bindings) {
+      for (const binding in component.bindings) {
+        if (component.bindings[binding].includes('@')) {
+          // @ts-ignore
+          bindings[kebabCase(binding)] = props[binding]
+        } else {
+          bindings[kebabCase(binding)] = `props.${binding}`
         }
       }
-      return React.createElement(kebabCase(componentName),
-        { ...bindings, ref: this.compile.bind(this) }
-      )
     }
 
-    // makes angular aware of changed props
-    // if we're not inside a digest cycle, kicks off a digest cycle before setting.
-    static getDerivedStateFromProps(props: Props, state: State<Props>) {
-      if (!state.scope) {
-        return null
-      }
-      state.scope.props = writable(props)
-      Component.digest(state.scope)
-
-      return {...state};
-    }
-
-    private compile(element: HTMLElement) {
-      if (this.state.didInitialCompile || !this.state.scope) {
+    function compile(element: HTMLElement) {
+      if (didInitialCompile || !scope) {
         return
       }
 
-      const $injector = this.getInjector();
-      $injector.get('$compile')(element)(this.state.scope)
-      Component.digest(this.state.scope)
-      this.setState({ didInitialCompile: true })
-    }
-
-    static digest(scope: Scope<Props>) {
-      if (!scope) {
-        return
+      const $injector = getInjector()
+      $injector.get('$compile')(element)(scope)
+      if ( scope ){
+        try {scope.$digest() } catch (e) { }
       }
-      try {scope.$digest() } catch (e) { }
+      setDidInitialCompile(true)
     }
 
+    return createElement(
+      kebabCase(componentName),
+      { ...bindings, ref: compile }
+    )
   }
+
 }
 
 /**
