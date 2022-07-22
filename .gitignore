@@ -7,3 +7,4 @@ npm-debug.log
 !karma.conf.js
 !types/lodash.kebabcase.d.ts
 yarn-error.log
+/angular2react.iml

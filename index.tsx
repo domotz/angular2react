@@ -1,7 +1,6 @@
 import * as angular from 'angular'
 import kebabCase = require('lodash.kebabcase')
 import { $injector as defaultInjector } from 'ngimport'
-import * as React from 'react'
 import {
   createElement,
   FunctionComponent,
