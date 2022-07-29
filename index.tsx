@@ -62,12 +62,12 @@ export function angular2react<Props extends object>(
 
     // @ts-ignore
     React.useEffect(() => {
-        if (!scope) {
-          return null
-        }
-        // @ts-ignore
+      if (!scope) {
+        return null
+      }
+      // @ts-ignore
       scope.props = writable(props)
-        digest(scope)
+      digest(scope)
     })
 
     const bindings: { [key: string]: string } = {}
