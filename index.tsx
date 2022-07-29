@@ -2,13 +2,7 @@ import { IScope } from 'angular'
 import * as angular from 'angular'
 import kebabCase = require('lodash.kebabcase')
 import { $injector as defaultInjector } from 'ngimport'
-import {
-  createElement,
-  FunctionComponent,
-  useEffect,
-  useMemo, useRef,
-  useState
-} from 'react'
+import * as React from 'react'
 
 /**
  * Wraps an Angular component in React. Returns a new React component.
@@ -43,20 +37,22 @@ export function angular2react<Props extends object>(
   componentName: string,
   component: angular.IComponentOptions,
   $injector = defaultInjector
-): FunctionComponent<Props> {
+): React.FunctionComponent<Props> {
 
   function  getInjector() {
     return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector()
   }
 
   return function Component(props: Props): any {
-    const [didInitialCompile, setDidInitialCompile] = useState<Boolean>(false)
-    const scope = useMemo<IScope>(() => getInjector().get('$rootScope').$new(true), [])
-    const scopeRef = useRef(scope)
+    const [didInitialCompile, setDidInitialCompile] = React.useState<Boolean>(false)
+    console.log('NEW CODE RUNNING')
+    const scope = React.useMemo<IScope>(() => {
+      let s = getInjector().get('$rootScope').$new(true);
+      Object.assign(s, {props: writable(props)})
+      return s;
+    }, [])
 
-    useEffect(() => {
-      scopeRef.current = scope
-      Object.assign(scopeRef.current, {props: writable(props)})
+    React.useEffect(() => {
       return () => {
         if (!scope) {
           return
@@ -66,7 +62,7 @@ export function angular2react<Props extends object>(
     }, [scope])
 
     // @ts-ignore
-    useEffect(() => {
+    React.useEffect(() => {
         if (!scope) {
           return null
         }
@@ -98,7 +94,7 @@ export function angular2react<Props extends object>(
       setDidInitialCompile(true)
     }
 
-    return createElement(
+    return React.createElement(
       kebabCase(componentName),
       { ...bindings, ref: compile }
     )
