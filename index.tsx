@@ -45,7 +45,6 @@ export function angular2react<Props extends object>(
 
   return function Component(props: Props): any {
     const [didInitialCompile, setDidInitialCompile] = React.useState<Boolean>(false)
-    console.log('NEW CODE RUNNING')
     const scope = React.useMemo<IScope>(() => {
       let s = getInjector().get('$rootScope').$new(true);
       Object.assign(s, {props: writable(props)})
