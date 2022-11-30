@@ -1,16 +1,8 @@
+import { IScope } from 'angular'
 import * as angular from 'angular'
 import kebabCase = require('lodash.kebabcase')
-import * as React from 'react'
 import { $injector as defaultInjector } from 'ngimport'
-
-interface Scope<Props> extends angular.IScope {
-  props: Props
-}
-
-interface State<Props> {
-  didInitialCompile: boolean
-  scope?: Scope<Props>
-}
+import * as React from 'react'
 
 /**
  * Wraps an Angular component in React. Returns a new React component.
@@ -33,83 +25,80 @@ interface State<Props> {
  *   <Bar onChange={...} />
  *   ```
  */
+
+function digest(scope: IScope): void{
+  if (!scope) {
+      return
+  }
+  try {scope.$digest() } catch (e) { }
+}
+
 export function angular2react<Props extends object>(
   componentName: string,
   component: angular.IComponentOptions,
   $injector = defaultInjector
-): React.ComponentClass<Props> {
+): React.FunctionComponent<Props> {
 
-  return class Component extends React.Component<Props, State<Props>> {
+  function  getInjector() {
+    return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector()
+  }
 
-    state: State<Props> = {
-      didInitialCompile: false,
-      scope: Object.assign(this.getInjector().get('$rootScope').$new(true), { props: writable(this.props) }),
-    }
+  return function Component(props: Props): any {
+    const [didInitialCompile, setDidInitialCompile] = React.useState<Boolean>(false)
+    const scope = React.useMemo<IScope>(() => {
+      let s = getInjector().get('$rootScope').$new(true);
+      Object.assign(s, {props: writable(props)})
+      return s;
+    }, [])
 
-    getInjector() {
-      return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector();
-    }
-
-    componentWillUnmount() {
-      if (!this.state.scope) {
-        return
-      }
-      this.state.scope.$destroy()
-    }
-
-    shouldComponentUpdate(): boolean {
-      return false
-    }
-
-    // called only once to set up DOM, after componentWillMount
-    render() {
-      const bindings: { [key: string]: string } = {}
-      if (component.bindings) {
-        for (const binding in component.bindings) {
-          if (component.bindings[binding].includes('@')) {
-            // @ts-ignore
-            bindings[kebabCase(binding)] = this.props[binding];
-          } else {
-            bindings[kebabCase(binding)] = `props.${binding}`;
-          }
+    React.useEffect(() => {
+      return () => {
+        if (!scope) {
+          return
         }
+        scope.$destroy()
       }
-      return React.createElement(kebabCase(componentName),
-        { ...bindings, ref: this.compile.bind(this) }
-      )
-    }
+    }, [scope])
 
-    // makes angular aware of changed props
-    // if we're not inside a digest cycle, kicks off a digest cycle before setting.
-    static getDerivedStateFromProps(props: Props, state: State<Props>) {
-      if (!state.scope) {
+    // @ts-ignore
+    React.useEffect(() => {
+      if (!scope) {
         return null
       }
-      state.scope.props = writable(props)
-      Component.digest(state.scope)
+      // @ts-ignore
+      scope.props = writable(props)
+      digest(scope)
+    })
 
-      return {...state};
+    const bindings: { [key: string]: string } = {}
+    if (component.bindings) {
+      for (const binding in component.bindings) {
+        if (component.bindings[binding].includes('@')) {
+          // @ts-ignore
+          bindings[kebabCase(binding)] = props[binding]
+        } else {
+          bindings[kebabCase(binding)] = `props.${binding}`
+        }
+      }
     }
 
-    private compile(element: HTMLElement) {
-      if (this.state.didInitialCompile || !this.state.scope) {
+    function compile(element: HTMLElement) {
+      if (didInitialCompile || !scope) {
         return
       }
 
-      const $injector = this.getInjector();
-      $injector.get('$compile')(element)(this.state.scope)
-      Component.digest(this.state.scope)
-      this.setState({ didInitialCompile: true })
+      const $injector = getInjector()
+      $injector.get('$compile')(element)(scope)
+      digest(scope)
+      setDidInitialCompile(true)
     }
 
-    static digest(scope: Scope<Props>) {
-      if (!scope) {
-        return
-      }
-      try {scope.$digest() } catch (e) { }
-    }
-
+    return React.createElement(
+      kebabCase(componentName),
+      { ...bindings, ref: compile }
+    )
   }
+
 }
 
 /**
