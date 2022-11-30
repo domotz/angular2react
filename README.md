@@ -4,6 +4,8 @@
 
 > One line of code to turn any Angular 1 Component into a React Component (opposite of [react2angular](https://github.com/coatue-oss/react2angular))
 
+# It works with React 18 - https://www.npmjs.com/package/@domotz/angular2react
+
 ## Installation
 
 ```sh
