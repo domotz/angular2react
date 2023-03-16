@@ -40,7 +40,9 @@ export function angular2react<Props extends object>(
 ): React.FunctionComponent<Props> {
 
   function  getInjector() {
-    return $injector || angular.element(document.querySelectorAll('[ng-app]')[0]).injector()
+    return $injector 
+    || angular.element(document.querySelectorAll('[ng-app]')[0]).injector()
+    || angular.element(document.querySelectorAll('#angular-main-app')[0]).injector()
   }
 
   return function Component(props: Props): any {
