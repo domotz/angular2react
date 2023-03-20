@@ -141,5 +141,5 @@ interface Props {
 }
 
 function compile($injector: auto.IInjectorService) {
-  return angular2react<Props>('fooBarBaz', FooBarBaz, $injector)
+  return angular2react<React.PropsWithChildren<Props>>('fooBarBaz', FooBarBaz, $injector)
 }
